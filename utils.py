@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
-
+import numpy as np
 
 def lr_finder(train_loader,optimizer,criterion,model,end_lr):
     lr_finder = LRFinder(model, optimizer, criterion, device="mps")
@@ -61,7 +61,6 @@ def test(model, device, test_loader,criterion):
     return test_loss,test_accuracy
 
 def plt_wrongpred(model,test_data,device,class_names,target_layers):
-    model_eval=model.eval()
     wrong_predictions = []
     with torch.no_grad():
         for data, target in test_data:
@@ -75,10 +74,12 @@ def plt_wrongpred(model,test_data,device,class_names,target_layers):
         plt.subplot(2,5,i)
         plt.axis('off')
         image, predicted, label = wrong_predictions[i]
-        image_ch = image.to(device).permute(1, 2, 0)  # Rearrange dimensions for plotting (assuming channels are last)    
+        device = torch.device("mps")
+        image_ch = image.to(device).permute(1, 2, 0)  # Rearrange dimensions for plotting (assuming channels are last)
+        img = np.float32(image_ch.cpu()) / 255
         # Plot the image
-        gm=gradcam(image,image,model,target_layers)
-        plt.imshow(gm.clamp(0,1))
+        gm=gradcam(img,image.unsqueeze(0),model,target_layers)
+        plt.imshow(gm)
         plt.title(f"{class_names[predicted]}-{class_names[label]}")
 def gradcam(image,input_tensor,model,target_layers):
     cam = GradCAM(model=model, target_layers=target_layers)
