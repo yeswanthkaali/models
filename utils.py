@@ -4,6 +4,9 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
 def lr_finder(train_loader,model,start_lr,end_lr):
@@ -16,7 +19,7 @@ def lr_finder(train_loader,model,start_lr,end_lr):
 from tqdm import tqdm
 def GetCorrectPredCount(pPrediction, pLabels):
   return pPrediction.argmax(dim=1).eq(pLabels).sum().item()
-def train(model, device, train_loader, optimizer, epoch):
+def train(model, device, train_loader, optimizer,scheduler):
     model.train()
     pbar = tqdm(train_loader)
     train_loss = 0
@@ -29,6 +32,7 @@ def train(model, device, train_loader, optimizer, epoch):
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
+        scheduler.step()
         correct += GetCorrectPredCount(output, target)
         processed += len(data)
         train_loss+=loss.item()
@@ -58,7 +62,7 @@ def test(model, device, test_loader):
         100. * correct / len(test_loader.dataset)))
     return test_loss,test_accuracy
 
-def plt_wrongpred(model,test_data,device,class_names):
+def plt_wrongpred(model,test_data,device,class_names,target_layers):
     model_eval=model.eval()
     wrong_predictions = []
     with torch.no_grad():
@@ -73,8 +77,15 @@ def plt_wrongpred(model,test_data,device,class_names):
         plt.subplot(2,5,i)
         plt.axis('off')
         image, predicted, label = wrong_predictions[i]
-        image = image.to(device).permute(1, 2, 0)  # Rearrange dimensions for plotting (assuming channels are last)    
+        image_ch = image.to(device).permute(1, 2, 0)  # Rearrange dimensions for plotting (assuming channels are last)    
         # Plot the image
-        plt.imshow(image.clamp(0,1))
+        gm=gradcam(image,image,model,target_layers)
+        plt.imshow(gm.clamp(0,1))
         plt.title(f"{class_names[predicted]}-{class_names[label]}")
+def gradcam(image,input_tensor,model,target_layers):
+    cam = GradCAM(model=model, target_layers=target_layers)
+    grayscale_cam = cam(input_tensor=input_tensor)
+    grayscale_cam = grayscale_cam[0, :]
+    visualization = show_cam_on_image(image, grayscale_cam, use_rgb=True)
+    return visualization
 
