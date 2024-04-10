@@ -10,7 +10,7 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
 def lr_finder(train_loader,optimizer,criterion,model,end_lr):
-    lr_finder = LRFinder(model, optimizer, criterion, device="mps")
+    lr_finder = LRFinder(model, optimizer, criterion, device="cpu")
     lr_finder.range_test(train_loader,end_lr=end_lr, num_iter=100, step_mode="exp")
     lr_finder.plot(log_lr=False)
     lr_finder.reset()
