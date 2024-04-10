@@ -9,9 +9,8 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
-def lr_finder(train_loader,model,start_lr,end_lr):
+def lr_finder(train_loader,optimizer,criterion,model,end_lr):
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-2)
     lr_finder = LRFinder(model, optimizer, criterion, device="mps")
     lr_finder.range_test(train_loader,end_lr=end_lr, num_iter=100, step_mode="exp")
     lr_finder.plot(log_lr=False)
