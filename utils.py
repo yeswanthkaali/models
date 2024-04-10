@@ -60,7 +60,7 @@ def test(model, device, test_loader,criterion):
         100. * correct / len(test_loader.dataset)))
     return test_loss,test_accuracy
 
-def plt_wrongpred(model,test_data,device,class_names,target_layers):
+def plt_wrongpred_gradcam(model,test_data,device,class_names,target_layers):
     wrong_predictions = []
     with torch.no_grad():
         for data, target in test_data:
@@ -87,4 +87,22 @@ def gradcam(image,input_tensor,model,target_layers):
     grayscale_cam = grayscale_cam[0, :]
     visualization = show_cam_on_image(image, grayscale_cam, use_rgb=True)
     return visualization
+def plt_wrongpred(model,test_data,device,class_names,target_layers):
+    wrong_predictions = []
+    with torch.no_grad():
+        for data, target in test_data:
+            data, target = data.to(device), target
+            output = model(data.unsqueeze(0))
+            pred = torch.argmax(output, 1)# get the index of the max log-probability
+            if(pred!=target):
+                wrong_predictions.append((data, pred, target))
+    device = "cpu"
+    for i in range(1,min(11, len(wrong_predictions))):
+        plt.subplot(2,5,i)
+        plt.axis('off')
+        image, predicted, label = wrong_predictions[i]
+        image = image.to(device).permute(1, 2, 0)  # Rearrange dimensions for plotting (assuming channels are last)    
+        # Plot the image
+        plt.imshow(image.clamp(0,1))
+        plt.title(f"{class_names[predicted]}-{class_names[label]}")
 
