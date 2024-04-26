@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
+import math
 import numpy as np
 
 def lr_finder(train_loader,optimizer,criterion,model,end_lr):
@@ -60,8 +61,10 @@ def test(model, device, test_loader,criterion):
         100. * correct / len(test_loader.dataset)))
     return test_loss,test_accuracy
 
-def plt_wrongpred_gradcam(model,test_data,device,class_names,target_layers):
+def plt_wrongpred_gradcam(model,test_data,device,class_names,target_layers,inv_normalize,num_images):
     wrong_predictions = []
+    x_count = 5
+    y_count = 1 if num_images <= 5 else math.floor(num_images / x_count)
     with torch.no_grad():
         for data, target in test_data:
             data, target = data.to(device), target
@@ -70,13 +73,14 @@ def plt_wrongpred_gradcam(model,test_data,device,class_names,target_layers):
             if(pred!=target):
                 wrong_predictions.append((data, pred, target))
     device = "cpu"
-    for i in range(1,min(11, len(wrong_predictions))):
-        plt.subplot(2,5,i)
+    for i in range(1,min(num_images, len(wrong_predictions))):
+        plt.subplot(y_count,x_count,i)
         plt.axis('off')
         image, predicted, label = wrong_predictions[i]
         device = torch.device("mps")
-        image_ch = image.to(device).permute(1, 2, 0)  # Rearrange dimensions for plotting (assuming channels are last)
-        img = np.float32(image_ch.cpu()) / 255
+        image_ch=inv_normalize(image)
+        image_ch = image_ch.to(device).permute(1, 2, 0)
+        img = np.float32(image_ch.cpu())
         # Plot the image
         gm=gradcam(img,image.unsqueeze(0),model,target_layers)
         plt.imshow(gm)
@@ -87,7 +91,9 @@ def gradcam(image,input_tensor,model,target_layers):
     grayscale_cam = grayscale_cam[0, :]
     visualization = show_cam_on_image(image, grayscale_cam, use_rgb=True)
     return visualization
-def plt_wrongpred(model,test_data,device,class_names,target_layers):
+def plt_wrongpred(model,test_data,device,class_names,num_images):
+    x_count = 5
+    y_count = 1 if num_images <= 5 else math.floor(num_images / x_count)
     wrong_predictions = []
     with torch.no_grad():
         for data, target in test_data:
@@ -97,12 +103,12 @@ def plt_wrongpred(model,test_data,device,class_names,target_layers):
             if(pred!=target):
                 wrong_predictions.append((data, pred, target))
     device = "cpu"
-    for i in range(1,min(11, len(wrong_predictions))):
+    for i in range(1,min(num_images, len(wrong_predictions))):
         plt.subplot(2,5,i)
         plt.axis('off')
         image, predicted, label = wrong_predictions[i]
         image = image.to(device).permute(1, 2, 0)  # Rearrange dimensions for plotting (assuming channels are last)    
         # Plot the image
         plt.imshow(image.clamp(0,1))
-        plt.title(f"{class_names[predicted]}-{class_names[label]}")
+        plt.title(f"{class_names[predicted]} \n {class_names[label]}")
 
